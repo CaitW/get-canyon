@@ -2,7 +2,8 @@ const fs = require('fs');
 const got = require('got');
 const jsdom = require('jsdom');
 const NotificationCenter = require('node-notifier').NotificationCenter;
-var cron = require('node-cron');
+const credentials = require('./credentials');
+const nodemailer = require('nodemailer');
 
 var notifier = new NotificationCenter({
   withFallback: false, // Use Growl Fallback if <= 10.8
@@ -13,9 +14,9 @@ const { JSDOM } = jsdom;
 const grailUrl =
   'https://www.canyon.com/en-us/gravel-bikes/all-road/grail/grail-7/2837.html';
 
-const getCanyon = () => {
-  got(grailUrl)
-    .then((response) => {
+const getCanyon = async () => {
+  await got(grailUrl)
+    .then(async (response) => {
       const $ = new JSDOM(response.body).window.document;
 
       // Find the XS in stock box
@@ -51,12 +52,36 @@ const getCanyon = () => {
           message: `in stock: ${inStock}`,
           sound: 'Hero',
           wait: true,
-          timeout: 5000,
+          timeout: 10,
           open: grailUrl
         });
+
+        // create reusable transporter object using the default SMTP transport
+        let transporter = nodemailer.createTransport({
+          host: 'smtp.gmail.com',
+          port: 465,
+          secure: true, // true for 465, false for other ports
+          auth: {
+            user: credentials.outgoingEmail, // generated ethereal user
+            pass: credentials.password // generated ethereal password
+          }
+        });
+
+        // send mail with defined transport object
+        await transporter
+          .sendMail({
+            from: `"Caitlin" <${credentials.outgoingEmail}>`, // sender address
+            to: credentials.personalEmail, // list of receivers
+            subject: 'Canyon in stock!', // Subject line
+            text: 'Canyon Grail 7 is in stock!', // plain text body
+            html: '<b>Canyon Grail 7 is in stock!</b>' // html body
+          })
+          .catch((error) => {
+            console.log('error sending mail', error);
+          });
       }
 
-      console.log('in stock:', inStock);
+      console.log(log);
     })
     .catch((err) => {
       console.log(err);

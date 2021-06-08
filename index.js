@@ -4,6 +4,7 @@ const jsdom = require('jsdom');
 const NotificationCenter = require('node-notifier').NotificationCenter;
 const credentials = require('./credentials');
 const nodemailer = require('nodemailer');
+const chalk = require('chalk');
 
 var notifier = new NotificationCenter({
   withFallback: false, // Use Growl Fallback if <= 10.8
@@ -41,7 +42,15 @@ const writeToLog = (model, inStock) => {
       if (err) throw err;
     }
   );
-  return log;
+
+  // Write to terminal in pretty colors:
+  const inStockLog = inStock ? chalk.green(inStock) : chalk.red(inStock);
+  console.log(
+    chalk.dim(new Date().toString()),
+    chalk.blue(model),
+    chalk.dim(' - '),
+    inStockLog
+  );
 };
 
 const notifyMe = async (model, url) => {
@@ -60,8 +69,8 @@ const notifyMe = async (model, url) => {
     port: 465,
     secure: true, // true for 465, false for other ports
     auth: {
-      user: credentials.outgoingEmail, // generated ethereal user
-      pass: credentials.password // generated ethereal password
+      user: credentials.outgoingEmail,
+      pass: credentials.password
     }
   });
 
@@ -85,15 +94,13 @@ const getCanyon = (url, modelName) => {
       const $ = new JSDOM(response.body).window.document;
       const inStock = getInStock($);
 
-      // log to file + save log line
-      const log = writeToLog(modelName, inStock);
+      // log to file
+      writeToLog(modelName, inStock);
 
       // if it's in stock, notify me
       if (inStock) {
         notifyMe(modelName, url);
       }
-
-      console.log(log);
     })
     .catch((err) => {
       console.log(err);

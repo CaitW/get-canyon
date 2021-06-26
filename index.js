@@ -1,22 +1,39 @@
+// file system reading / writing
 const fs = require('fs');
+// request library
 const got = require('got');
+// HTML parsing / traversing library
 const jsdom = require('jsdom');
+// Library to create Mac notifications
 const NotificationCenter = require('node-notifier').NotificationCenter;
+// External credentials file
 const credentials = require('./credentials');
+// Library that sends emails
 const nodemailer = require('nodemailer');
+// Library that makes terminal output pretty
 const chalk = require('chalk');
 
-var notifier = new NotificationCenter({
-  withFallback: false, // Use Growl Fallback if <= 10.8
-  customPath: undefined // Relative/Absolute path to binary if you want to use your own fork of terminal-notifier
+// Initialize NotificationCenter object, which creates Mac notifications
+const notifier = new NotificationCenter({
+  withFallback: false,
+  customPath: undefined
 });
 const { JSDOM } = jsdom;
+
+// URLs for bikes
 const grailURL =
   'https://www.canyon.com/en-us/gravel-bikes/all-road/grail/grail-7/2837.html';
 const grail1byURL =
   'https://www.canyon.com/en-us/gravel-bikes/all-road/grail/al/grail-7-1by/2838.html';
+
+// How often I want it to check for my bike in minutes
 const frequencyInMinutes = 5;
 
+/**
+ * checks whether an XS bike is in stock on a given HTML page
+ * @param {*} $ - the DOM of the page
+ * @returns boolean indicating whether XS bike is in stock
+ */
 const getInStock = ($) => {
   // Find the XS in stock box
   const $sizes = Array.from(
@@ -33,6 +50,7 @@ const getInStock = ($) => {
   return xsComingSoon?.indexOf('Coming soon') === -1;
 };
 
+// Log status to console + log status to logfile
 const writeToLog = (model, inStock) => {
   const log = '\n' + new Date().toString() + ` - ${model} in stock: ${inStock}`;
   fs.appendFile(
@@ -53,6 +71,7 @@ const writeToLog = (model, inStock) => {
   );
 };
 
+// Code to send me an email + pop up a notification on my mac if the bike is in stock
 const notifyMe = async (model, url) => {
   notifier.notify({
     title: 'Canyon Grail',
@@ -88,6 +107,16 @@ const notifyMe = async (model, url) => {
     });
 };
 
+/**
+ * Main function. Includes code to:
+ *  1. Fetch a given URL
+ *  2. On URL response, parse it using JSDOM
+ *  3. Send the parsed JSDOM object to my getInStock function
+ *  4. Log output to a file
+ *  5. If it's in stock, send me an email / notify me on my mac
+ * @param {*} url
+ * @param {*} modelName
+ */
 const getCanyon = (url, modelName) => {
   got(url)
     .then(async (response) => {
